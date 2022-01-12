@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	capi "k8s.io/api/certificates/v1beta1"
+	capi "k8s.io/api/certificates/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -46,8 +46,7 @@ type CertificateSigningRequestSigningReconciler struct {
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/status,verbs=patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
-func (r *CertificateSigningRequestSigningReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *CertificateSigningRequestSigningReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("certificatesigningrequest", req.NamespacedName)
 	var csr capi.CertificateSigningRequest
 	if err := r.Client.Get(ctx, req.NamespacedName, &csr); client.IgnoreNotFound(err) != nil {
@@ -56,9 +55,9 @@ func (r *CertificateSigningRequestSigningReconciler) Reconcile(req ctrl.Request)
 	switch {
 	case !csr.DeletionTimestamp.IsZero():
 		log.V(1).Info("CSR has been deleted. Ignoring.")
-	case csr.Spec.SignerName == nil:
+	case csr.Spec.SignerName == "":
 		log.V(1).Info("CSR does not have a signer name. Ignoring.")
-	case *csr.Spec.SignerName != r.SignerName:
+	case csr.Spec.SignerName != r.SignerName:
 		log.V(1).Info("CSR signer name does not match. Ignoring.", "signer-name", csr.Spec.SignerName)
 	case csr.Status.Certificate != nil:
 		log.V(1).Info("CSR has already been signed. Ignoring.")
